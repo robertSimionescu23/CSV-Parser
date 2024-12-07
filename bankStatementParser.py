@@ -33,26 +33,22 @@ def monthStringToNumber(month): #Turn the name of a month into it's correspondin
 
 transactionTypesEnum = ("Incasare ", "Cumparare", "Transfer ")
 
-#Info to be extracted
-transactionDate   = ""
-transcationType   = ""
-transcationValue  = ""
-transactionVendor = ""
 
-#Full transaction list
-transcationList = []
-
-def parseStatements(bankName):
-    path = "./Statements/"
-    text = ""
-
+def parseStatements(bankName, filePath):
     checkInNRows = -1
+    transactionText = ""
+
+    #Info to be extracted
+    transactionDate   = ""
+    transcationType   = ""
+    transcationValue  = ""
+    transactionVendor = ""
+
+    #Full transaction list
+    transcationList = []
 
     if(bankName == "ING"):
-        path += os.listdir(path)[0]
-        path += "/" + os.listdir(path)[0]
-
-        with open(path, newline = '') as csvfile:
+        with open(filePath, newline = '') as csvfile:
             reader = csv.reader(csvfile, delimiter=',', quotechar='|')
 
             for row in reader:
@@ -98,9 +94,10 @@ def parseStatements(bankName):
         #  --- Processing the data ---  #
 
         for transaction in transcationList:
-            #  --- Date ---  #
+            #  --- Date ---   #
             date = transaction[0].split()
             month = date[1]
+            year  = date[2]
 
             transaction[0] = transaction[0].replace(month, monthStringToNumber(month)) # e.g. november --> 11
 
@@ -123,49 +120,55 @@ def parseStatements(bankName):
                     transaction[2] += " "
 
             #  --- Vendor ---  #
-            # if(transaction[3][0: 11] == "Beneficiar:"):
-            #     transaction[3] = transaction[3].replace("Beneficiar:", "")
-            # elif(transaction[3][0: 9] == "In contul"):
-            #     transaction[3] = transaction[3].replace("In contul:", "to ")
-            # else:
-            #     transaction[3] = transaction[3].replace("Ordonator:","")
-            #     # transaction[3] = transaction[3].split()[0]
 
-            # transaction[3] = transaction[3].replace("Incasare:", "")
+            vendorComponents = transaction[3].split(":")
 
-            vendorPrefix = transaction[3].split(":")
-
-            if(vendorPrefix[0] == "Terminal"):
-                transaction[3] = vendorPrefix[1].split()[0]
+            if(vendorComponents[0] == "Terminal"): #First component is info on where the transaction took place. Depending on that further processing may be required.
+                transaction[3] = vendorComponents[1].split()[0]
             else:
-                transaction[3] = vendorPrefix[1]
+                transaction[3] = vendorComponents[1]
+
+            transactionText += " | ".join(transaction) + "\n"
+
+        fileName = "./Ing Reports/" + year + " " + month + " report.txt"
+
+        if(os.path.isfile(fileName)):
+            with open(fileName, "r") as out:
+                previousFileText = out.read()
+                out.close()
+        else:
+            print("ING " + month + " " + year + " report has been created.")
+            previousFileText = "This file does not exist yet" #It is safer to assign a random string than a blank one. If the file was already blank, by an accident, the repor would not be generated.
+
+        if (previousFileText != transactionText): # Do not rewrite file if it is already the same
+            print("ING " + month + " " + year + " report has been updated.")
+            with open(fileName, "w") as out:
+                out.write(transactionText)
+                out.close()
+        else:
+            print("ING "  + month + " " + year + " report is still the same.")
 
 
+    # elif(bankName == "Revolut"):
+    #     path += os.listdir(path)[1]
+    #     path += "/" + os.listdir(path)[0]
+    #     with open(path, newline = '') as csvfile:
+    #         reader = csv.reader(csvfile, delimiter=',', quotechar='|')
 
+    #         for row in reader:
+    #             transactionText += (" ".join(row)) + "\n"
 
-            text += " | ".join(transaction) + "\n"
-
-
-        with open("test.txt", "w") as out:
-            out.write(text)
-            out.close()
-
-
-    elif(bankName == "Revo"):
-        path += os.listdir(path)[1]
-        path += "/" + os.listdir(path)[0]
-        with open(path, newline = '') as csvfile:
-            reader = csv.reader(csvfile, delimiter=',', quotechar='|')
-
-            for row in reader:
-                text += (" ".join(row)) + "\n"
-
-        f = open("test.txt", "w")
-        f.write(text)
-        f.close()
-
-    else:
-        print("Not a valid Bank")
+    #     f = open("test.txt", "w")
+    #     f.write(transactionText)
+    #     f.close()
 
 if __name__ == "__main__":
-    parseStatements(sys.argv[1])
+    if(len(sys.argv) == 2):
+        if(sys.argv[1] == "ING" or sys.argv[1] == "Revolut"):
+            bankStatementFolderPath = "./Statements/" + sys.argv[1]
+            for statementFile in os.listdir(bankStatementFolderPath):
+                parseStatements(sys.argv[1], bankStatementFolderPath + "/" + statementFile)
+        else:
+            print("Not a valid command")
+    else:
+        print(" Provide a Bank (ING or Revolut) \n or \n Request a general report (add report at the end of command)")
