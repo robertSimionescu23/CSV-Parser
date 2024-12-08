@@ -31,6 +31,8 @@ def monthStringToNumber(month): #Turn the name of a month into it's correspondin
             return ("12")
 
 transactionTypesEnum = ("Incasare ", "Cumparare", "Transfer ")
+#Incasare - Any monmey coming in, from an account other than mine
+#Cumparare - Any money
 
 def parseINGCSVFile(file):
     statementFilesPath = "./Statements/ING/"
@@ -104,20 +106,14 @@ def parseINGStatements():
 
     return monthreport
 
+def formatINGStatementsToText(monthReport):
+    for entry in monthReport:
 
-
-def parseStatements():
-
-    transactionText = ""
-
-    monthlyReportsING = parseINGStatements()
-
-    #  --- Processing the data ---  #
-    for entry in monthlyReportsING:
+        transactionText = ""
 
         year  = entry[0]
         month = entry[1]
-        print(entry[2])
+
         for transaction in entry[2]:
         # Formatting the data
             # --- Date --- #
@@ -140,7 +136,6 @@ def parseStatements():
                     transaction[2] += " "
 
             #  --- Vendor ---  #
-
             vendorComponents = transaction[3].split(":")
 
             if(vendorComponents[0] == "Terminal"): #First component is info on where the transaction took place. Depending on that further processing may be required.
@@ -167,6 +162,51 @@ def parseStatements():
                 out.close()
         else:
             print("ING "  + month + " " + year + " report is still the same.")
+
+
+# def parseRevolutCSVFile(file):
+#     statementFilesPath = "./Statements/Revolut/"
+
+#     #Info to be extracted
+#     transactionDate   = ""
+#     transcationType   = ""
+#     transcationValue  = ""
+#     transactionVendor = ""
+
+#     #Full transaction list
+#     transcationList = []
+
+#     filePath = statementFilesPath + file
+
+#     with open(filePath, newline = '') as csvfile:
+#         reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+
+#         for row in reader:
+#             if row[0] == "Type": #Skip the first line
+#                 continue
+
+#             # -- Date -- #
+#             transactionDate = row[2].split(" ")[0] #There is also a time refrence, which is not needed.
+#             transactionDate = transactionDate.replace("-", "/") #Format the date in the needed format.
+
+#             # -- Type -- #
+#             transcationType = row[0]
+
+#             match (transcationType):
+#                 case("TOPUP"):
+#                     transcationType = transactionTypesEnum[0]
+#                 case("CARD_PAYMENT"):
+#                     transcationType = transactionTypesEnum[1]
+#                 case("TRANSFER"):
+#                     transcationType = transactionTypesEnum[0]
+
+
+
+
+def parseStatements():
+
+    monthlyReportsING = parseINGStatements()
+    formatINGStatementsToText(monthlyReportsING)
 
 
     # elif(bankName == "Revolut"):
