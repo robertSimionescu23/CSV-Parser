@@ -30,9 +30,38 @@ def monthStringToNumber(month): #Turn the name of a month into it's correspondin
         case "decembrie":
             return ("12")
 
-transactionTypesEnum = ("Incasare ", "Cumparare", "Transfer ")
+def monthNumberToString(month): #Turn the name of a month into it's corresponding number
+    match month:
+        case ("01"):
+            return "ianuarie"
+        case ("02"):
+            return "februarie"
+        case ("03"):
+            return "martie"
+        case ("04"):
+            return "aprilie"
+        case ("05"):
+            return "mai"
+        case ("06"):
+            return "iunie"
+        case ("07"):
+            return "iulie"
+        case ("08"):
+            return "august"
+        case ("09"):
+            return "septembrie"
+        case ("10"):
+            return "octombrie"
+        case ("11"):
+            return "noiembrie"
+        case ("12"):
+            return "decembrie"
+
+
+transactionTypesEnum = ("Incasare ", "Cumparare", "Transfer ", "Schimb   ") #Make all the same length for better formatting.
 #Incasare - Any monmey coming in, from an account other than mine
-#Cumparare - Any money
+#Cumparare - Any money spent
+#Transfer - Money sent to another account. TODO:Check if the account is mine, depricate transfer to the other 2.
 
 def parseINGCSVFile(file):
     statementFilesPath = "./Statements/ING/"
@@ -94,26 +123,33 @@ def parseINGCSVFile(file):
 
     return transcationList
 
-def parseINGStatements():
-    statementFilesPath = "./Statements/ING/"
+def createMonthlyReport(bankName):
+    statementFilesPath = "./Statements/" + bankName + "/"
     monthreport = [] # A list that will contain, the month, year and transaction of said month
     for file in os.listdir(statementFilesPath): #Iterate to every statement file (CSV) in the ING reports
-        transactionList = parseINGCSVFile(file)
-        date = transactionList[0][0].split(" ") #We can get the month and year from the first element, as it is always the same format
-        month = date[1]
-        year  = date[2]
+        if (bankName == "ING"):
+            transactionList = parseINGCSVFile(file)
+            #We can get the month and year from the first element, as it is always the same format
+            date = transactionList[0][0].split(" ")
+            month = date[1]
+            year  = date[2]
+        elif (bankName == "Revolut"):
+            transactionList = parseRevolutCSVFile(file)
+            date = transactionList[0][0].replace("-", " ").split(" ") #Split by "-" was not working...
+            month = monthNumberToString(date[1]) # Get a month string
+            year  = date[0]
+
         monthreport.append([year, month, transactionList])
 
     return monthreport
 
 def writeMonthlyReportToFiles(bankName, monthReport):
-
     for entry in monthReport:
 
         year  = entry[0]
         month = entry[1]
 
-        fileName = "./" + bankName + " " + "Reports/" + year + " " + monthStringToNumber(month) + " " + month + " report.txt" #format it i.e 2024 11 noiembrie report.txt
+        fileName = "./" + bankName + " " + "Reports/" + bankName + " " + year + " " + monthStringToNumber(month) + " " + month + " report.txt" #format it i.e ING 2024 11 noiembrie report.txt
         transactionText = ""
 
         for transaction in entry[2]:
@@ -158,7 +194,7 @@ def formatINGMonthlyReport(monthReport):
                     transaction[1] = transactionTypesEnum[2]
 
             #  --- Value ---
-            if(len(transaction[2]) < 7):
+            if(len(transaction[2]) < 7): #Add whitespace
                 for i in range (7 - len(transaction[2])):
                     transaction[2] += " "
 
@@ -170,59 +206,115 @@ def formatINGMonthlyReport(monthReport):
             else:
                 transaction[3] = vendorComponents[1]
 
-    return(monthReport)
-
-def processINGStatements():
-    INGMonthlyReport = parseINGStatements()
-    INGMonthlyReport = formatINGMonthlyReport(INGMonthlyReport)
-    writeMonthlyReportToFiles("ING", INGMonthlyReport)
-
-    return INGMonthlyReport
+    return monthReport
 
 
+def parseRevolutCSVFile(file):
+    statementFilesPath = "./Statements/Revolut/"
 
-# def parseRevolutCSVFile(file):
-#     statementFilesPath = "./Statements/Revolut/"
+    #Info to be extracted
+    transactionDate   = ""
+    transcationType   = ""
+    transcationValue  = ""
+    transactionVendor = ""
 
-#     #Info to be extracted
-#     transactionDate   = ""
-#     transcationType   = ""
-#     transcationValue  = ""
-#     transactionVendor = ""
+    #Full transaction list
+    transcationList = []
 
-#     #Full transaction list
-#     transcationList = []
+    filePath = statementFilesPath + file
 
-#     filePath = statementFilesPath + file
+    with open(filePath, newline = '') as csvfile:
+        reader = csv.reader(csvfile, delimiter=',', quotechar='|')
 
-#     with open(filePath, newline = '') as csvfile:
-#         reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        for row in reader:
+            if row[0] == "Type": #Skip the first line
+                continue
 
-#         for row in reader:
-#             if row[0] == "Type": #Skip the first line
-#                 continue
+            # -- Date -- #
+            transactionDate = row[2].split(" ")[0] #There is also a time refrence, which is not needed.
 
-#             # -- Date -- #
-#             transactionDate = row[2].split(" ")[0] #There is also a time refrence, which is not needed.
-#             transactionDate = transactionDate.replace("-", "/") #Format the date in the needed format.
+            # -- Type -- #
+            transcationType = row[0]
 
-#             # -- Type -- #
-#             transcationType = row[0]
+            # -- Value -- #
+            transcationValue = row[5]
 
-#             match (transcationType):
-#                 case("TOPUP"):
-#                     transcationType = transactionTypesEnum[0]
-#                 case("CARD_PAYMENT"):
-#                     transcationType = transactionTypesEnum[1]
-#                 case("TRANSFER"):
-#                     transcationType = transactionTypesEnum[0]
+            #  -- Vendor -- #
+            transactionVendor = row[4]
+
+            transcationList.append([transactionDate, transcationType, transcationValue, transactionVendor])
+
+    return transcationList
+
+def formatRevolutMonthlyReport(monthReport):
+    for entry in monthReport:
+            month = entry[1]
+            year  = entry[0]
+
+            for transaction in entry[2]:
+                # -- Date -- #
+                date = transaction[0].replace("-", " ").split(" ")
+                day  = date[2]
+
+                date = "/".join([day, month, year])
+
+                transaction[0] = date
+
+                # -- Type -- #
+                match(transaction[1]):
+                    case("TOPUP"):
+                        transaction[1] = transactionTypesEnum[0]
+                    case ("CARD_PAYMENT"):
+                        transaction[1] = transactionTypesEnum[1]
+                    case("TRANSFER"):
+                        transaction[1] = transactionTypesEnum[2]
+                    case("EXCHANGE"):
+                        transaction[1] = transactionTypesEnum[3]
+
+                # -- Value -- #
+                value = float(transaction[2])
+                if(value < 0):
+                    transaction[2] = str(value * (- 1))
+
+                if(len(transaction[2]) < 7): #Add whitespace
+                    for i in range (7 - len(transaction[2])):
+                        transaction[2] += " "
+
+                #  -- Vendor -- # TODO
+    return monthReport
 
 
+def processStatements(bankanme):
+    monthlyReport = createMonthlyReport(bankanme)
+    if(bankanme == "ING"):
+        monthlyReport = formatINGMonthlyReport(monthlyReport)
+        writeMonthlyReportToFiles(bankanme, monthlyReport)
+    elif(bankanme == "Revolut"):
+        monthlyReport = formatRevolutMonthlyReport(monthlyReport)
+        writeMonthlyReportToFiles(bankanme, monthlyReport)
+
+    for date in monthlyReport: #process into a easy to sort format. Reports will be merged by month basis
+        date[0] = date[0] + " " + date[1] #Merge the year and month into a single element, as they do not need to be separate anymore
+        date.pop(1)
+
+    return monthlyReport
+
+# def createGeneralReport():
+#     #TODO
 
 
 def parseStatements():
-    INGReports = processINGStatements()
+    INGReports = processStatements("ING")
+    RevolutReports = processStatements("Revolut")
+    generalReport = {}
 
+    # for ingReport in INGReports:
+    #     for revolutReport in RevolutReports:
+    #         if(ingReport[0] == revolutReport[0]): #Same month
+    #             auxReport = ingReport[1]
+    #             auxReport.extend(revolutReport[1])
+    #             auxReport.sort()
+    #             generalReport[ingReport[0]] = auxReport
 
 if __name__ == "__main__":
     parseStatements()
