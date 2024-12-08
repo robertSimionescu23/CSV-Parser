@@ -106,12 +106,39 @@ def parseINGStatements():
 
     return monthreport
 
-def formatINGStatementsToText(monthReport):
+def writeMonthlyReportToFiles(bankName, monthReport):
+
     for entry in monthReport:
 
+        year  = entry[0]
+        month = entry[1]
+
+        fileName = "./" + bankName + " " + "Reports/" + year + " " + monthStringToNumber(month) + " " + month + " report.txt" #format it i.e 2024 11 noiembrie report.txt
         transactionText = ""
 
-        year  = entry[0]
+        for transaction in entry[2]:
+            transactionText += " | ".join(transaction) + "\n"
+
+        if(os.path.isfile(fileName)):
+            with open(fileName, "r") as out:
+                previousFileText = out.read()
+                out.close()
+        else:
+            print(bankName + " " + month + " " + year + " report has been created.")
+            previousFileText = "This file does not exist yet" #It is safer to assign a random string than a blank one. If the file was already blank, by an accident, the repor would not be generated.
+
+        if (previousFileText != transactionText): # Do not rewrite file if it is already the same
+            print(bankName + " " + month + " " + year + " report has been updated.")
+            with open(fileName, "w") as out:
+                out.write(transactionText)
+                out.close()
+        else:
+            print(bankName + " " + month + " " + year + " report is still the same.")
+
+
+def formatINGMonthlyReport(monthReport):
+    for entry in monthReport:
+
         month = entry[1]
 
         for transaction in entry[2]:
@@ -143,25 +170,15 @@ def formatINGStatementsToText(monthReport):
             else:
                 transaction[3] = vendorComponents[1]
 
-            transactionText += " | ".join(transaction) + "\n"
+    return(monthReport)
 
-        fileName = "./Ing Reports/" + year + " " + month + " report.txt"
+def processINGStatements():
+    INGMonthlyReport = parseINGStatements()
+    INGMonthlyReport = formatINGMonthlyReport(INGMonthlyReport)
+    writeMonthlyReportToFiles("ING", INGMonthlyReport)
 
-        if(os.path.isfile(fileName)):
-            with open(fileName, "r") as out:
-                previousFileText = out.read()
-                out.close()
-        else:
-            print("ING " + month + " " + year + " report has been created.")
-            previousFileText = "This file does not exist yet" #It is safer to assign a random string than a blank one. If the file was already blank, by an accident, the repor would not be generated.
+    return INGMonthlyReport
 
-        if (previousFileText != transactionText): # Do not rewrite file if it is already the same
-            print("ING " + month + " " + year + " report has been updated.")
-            with open(fileName, "w") as out:
-                out.write(transactionText)
-                out.close()
-        else:
-            print("ING "  + month + " " + year + " report is still the same.")
 
 
 # def parseRevolutCSVFile(file):
@@ -204,23 +221,8 @@ def formatINGStatementsToText(monthReport):
 
 
 def parseStatements():
+    INGReports = processINGStatements()
 
-    monthlyReportsING = parseINGStatements()
-    formatINGStatementsToText(monthlyReportsING)
-
-
-    # elif(bankName == "Revolut"):
-    #     path += os.listdir(path)[1]
-    #     path += "/" + os.listdir(path)[0]
-    #     with open(path, newline = '') as csvfile:
-    #         reader = csv.reader(csvfile, delimiter=',', quotechar='|')
-
-    #         for row in reader:
-    #             transactionText += (" ".join(row)) + "\n"
-
-    #     f = open("test.txt", "w")
-    #     f.write(transactionText)
-    #     f.close()
 
 if __name__ == "__main__":
     parseStatements()
