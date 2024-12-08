@@ -3,7 +3,7 @@ import os
 import sys
 
 
-def monthStringToNumber(month): #Turn the name of a month into it's corresponding number
+def monthStringToNumber(month): #Turn the romanian name of a month into it's corresponding number
     match month:
         case "ianuarie":
             return ("01")
@@ -59,10 +59,15 @@ def monthNumberToString(month): #Turn the name of a month into it's correspondin
 
 
 transactionTypesEnum = ("Incasare ", "Cumparare", "Transfer ", "Schimb   ") #Make all the same length for better formatting.
-#Incasare - Any monmey coming in, from an account other than mine
+#Incasare  - Any monmey coming in, from an account other than mine
 #Cumparare - Any money spent
-#Transfer - Money sent to another account. TODO:Check if the account is mine, depricate transfer to the other 2.
+#Transfer  - Money sent to another account. TODO:Check if the account is mine, depricate transfer to the other 2.
 
+########################
+### CSV FILE PARSERS ###
+########################
+
+#Only get the relevant information from the csv file, leaving another function to format it
 def parseINGCSVFile(file):
     statementFilesPath = "./Statements/ING/"
 
@@ -123,92 +128,6 @@ def parseINGCSVFile(file):
 
     return transcationList
 
-def createMonthlyReport(bankName):
-    statementFilesPath = "./Statements/" + bankName + "/"
-    monthreport = [] # A list that will contain, the month, year and transaction of said month
-    for file in os.listdir(statementFilesPath): #Iterate to every statement file (CSV) in the ING reports
-        if (bankName == "ING"):
-            transactionList = parseINGCSVFile(file)
-            #We can get the month and year from the first element, as it is always the same format
-            date = transactionList[0][0].split(" ")
-            month = date[1]
-            year  = date[2]
-        elif (bankName == "Revolut"):
-            transactionList = parseRevolutCSVFile(file)
-            date = transactionList[0][0].replace("-", " ").split(" ") #Split by "-" was not working...
-            month = monthNumberToString(date[1]) # Get a month string
-            year  = date[0]
-
-        monthreport.append([year, month, transactionList])
-
-    return monthreport
-
-def writeMonthlyReportToFiles(bankName, monthReport):
-    for entry in monthReport:
-
-        year  = entry[0]
-        month = entry[1]
-
-        fileName = "./" + bankName + " " + "Reports/" + bankName + " " + year + " " + monthStringToNumber(month) + " " + month + " report.txt" #format it i.e ING 2024 11 noiembrie report.txt
-        transactionText = ""
-
-        for transaction in entry[2]:
-            transactionText += " | ".join(transaction) + "\n"
-
-        if(os.path.isfile(fileName)):
-            with open(fileName, "r") as out:
-                previousFileText = out.read()
-                out.close()
-        else:
-            print(bankName + " " + month + " " + year + " report has been created.")
-            previousFileText = "This file does not exist yet" #It is safer to assign a random string than a blank one. If the file was already blank, by an accident, the repor would not be generated.
-
-        if (previousFileText != transactionText): # Do not rewrite file if it is already the same
-            print(bankName + " " + month + " " + year + " report has been updated.")
-            with open(fileName, "w") as out:
-                out.write(transactionText)
-                out.close()
-        else:
-            print(bankName + " " + month + " " + year + " report is still the same.")
-
-
-def formatINGMonthlyReport(monthReport):
-    for entry in monthReport:
-
-        month = entry[1]
-
-        for transaction in entry[2]:
-        # Formatting the data
-            # --- Date --- #
-            transaction[0] = transaction[0].replace(month, monthStringToNumber(month)) # e.g. november --> 11
-
-            transaction[0] = transaction[0].replace(" ", "/")
-
-            #  --- Type ---  #
-            match(transaction[1]):
-                case("Incasare"):
-                    transaction[1] = transactionTypesEnum[0]
-                case ("Cumparare POS"):
-                    transaction[1] = transactionTypesEnum[1]
-                case("Transfer Home'Bank"):
-                    transaction[1] = transactionTypesEnum[2]
-
-            #  --- Value ---
-            if(len(transaction[2]) < 7): #Add whitespace
-                for i in range (7 - len(transaction[2])):
-                    transaction[2] += " "
-
-            #  --- Vendor ---  #
-            vendorComponents = transaction[3].split(":")
-
-            if(vendorComponents[0] == "Terminal"): #First component is info on where the transaction took place. Depending on that further processing may be required.
-                transaction[3] = vendorComponents[1].split()[0]
-            else:
-                transaction[3] = vendorComponents[1]
-
-    return monthReport
-
-
 def parseRevolutCSVFile(file):
     statementFilesPath = "./Statements/Revolut/"
 
@@ -246,42 +165,169 @@ def parseRevolutCSVFile(file):
 
     return transcationList
 
+#################################
+### DATA FORMATTING FUNCTIONS ###
+#################################
+
+def formatINGMonthlyReport(monthReport):
+    for entry in monthReport:
+
+        for transaction in entry[2]:
+        # Formatting the data
+            # --- Date --- #
+            date = transaction[0].split()
+            day = date[0]
+            month = monthStringToNumber(date[1])
+            year = date[2]
+
+            transaction[0] = "/".join([day, month, year])
+
+            transaction[0] = transaction[0].replace(" ", "/")
+
+            #  --- Type ---  #
+            match(transaction[1]):
+                case("Incasare"):
+                    transaction[1] = transactionTypesEnum[0]
+                case ("Cumparare POS"):
+                    transaction[1] = transactionTypesEnum[1]
+                case("Transfer Home'Bank"):
+                    transaction[1] = transactionTypesEnum[2]
+
+            #  --- Value ---
+            if(len(transaction[2]) < 7): #Add whitespace
+                for i in range (7 - len(transaction[2])):
+                    transaction[2] += " "
+
+            #  --- Vendor ---  #
+            vendorComponents = transaction[3].split(":")
+
+            if(vendorComponents[0] == "Terminal"): #First component is info on where the transaction took place. Depending on that further processing may be required.
+                transaction[3] = vendorComponents[1].split()[0]
+            else:
+                transaction[3] = vendorComponents[1]
+
+    return monthReport
+
+
 def formatRevolutMonthlyReport(monthReport):
     for entry in monthReport:
-            month = entry[1]
-            year  = entry[0]
 
-            for transaction in entry[2]:
-                # -- Date -- #
-                date = transaction[0].replace("-", " ").split(" ")
-                day  = date[2]
+        for transaction in entry[2]:
+            # -- Date -- #
+            date = transaction[0].replace("-", " ").split(" ")
+            year  = date[0]
+            month = date[1]
+            day   = date[2]
 
-                date = "/".join([day, month, year])
+            date = "/".join([day, month, year])
 
-                transaction[0] = date
+            transaction[0] = date
 
-                # -- Type -- #
-                match(transaction[1]):
-                    case("TOPUP"):
-                        transaction[1] = transactionTypesEnum[0]
-                    case ("CARD_PAYMENT"):
-                        transaction[1] = transactionTypesEnum[1]
-                    case("TRANSFER"):
-                        transaction[1] = transactionTypesEnum[2]
-                    case("EXCHANGE"):
-                        transaction[1] = transactionTypesEnum[3]
+            # -- Type -- #
+            match(transaction[1]):
+                case("TOPUP"):
+                    transaction[1] = transactionTypesEnum[0]
+                case ("CARD_PAYMENT"):
+                    transaction[1] = transactionTypesEnum[1]
+                case("TRANSFER"):
+                    transaction[1] = transactionTypesEnum[2]
+                case("EXCHANGE"):
+                    transaction[1] = transactionTypesEnum[3]
 
-                # -- Value -- #
-                value = float(transaction[2])
-                if(value < 0):
-                    transaction[2] = str(value * (- 1))
+            # -- Value -- #
+            value = float(transaction[2])
+            if(value < 0):
+                transaction[2] = str(value * (- 1))
 
-                if(len(transaction[2]) < 7): #Add whitespace
-                    for i in range (7 - len(transaction[2])):
-                        transaction[2] += " "
+            if(len(transaction[2]) < 7): #Add whitespace
+                for i in range (7 - len(transaction[2])):
+                    transaction[2] += " "
+            #  -- Vendor -- # TODO
+        entry[2].sort() #sort by day.
+        entry[2].sort(key = sortByMonth) #sort by month after sorting by day, thus transactions in the previous day will be at the top.
 
-                #  -- Vendor -- # TODO
+    monthReport = lintRevolutReport(monthReport)
+
     return monthReport
+
+### Supporting Functions ###
+def sortByMonth(e): #sort the transaction by month, instead of day
+    return e[0].split("/")[1]
+
+def lintRevolutReport(revolutMonthlyReports):
+    for monthReportNumber, monthlyTransactionList in enumerate(revolutMonthlyReports):
+
+        monthString = monthlyTransactionList[1] # Report has year on pos 0, month on pos 1, full list of month's transactions on 2
+        transactionList = monthlyTransactionList[2]
+
+        correctMonthNum = monthStringToNumber(monthString)
+        entriesToDelete = 0 # Due to previous formatting, all transactions from previous months are at the top. This function will relocate/remove them.
+
+        for transaction in transactionList:
+            transactionMonth = transaction[0].split("/")[1] #The date is formatted as dd/mm/yyyy. By splitting we can get the month, on index 1.
+            if (transactionMonth != correctMonthNum):
+                if(monthReportNumber > 0): #If the report is not the first a.k.a. we can relocate the transactions to the previous month they belong
+                    revolutMonthlyReports[monthReportNumber - 1][2].append(transaction)
+                    entriesToDelete += 1
+                else:
+                    entriesToDelete += 1
+
+        for entry in range(entriesToDelete): #Delete the number of entries needed
+            revolutMonthlyReports[monthReportNumber][2].pop(0)
+
+    return revolutMonthlyReports
+
+
+### CONCATENATE MONTHS INTO A FULL REPORT ###
+def createMonthlyReport(bankName):
+    statementFilesPath = "./Statements/" + bankName + "/"
+    monthreport = [] # A list that will contain, the month, year and transaction of said month
+    for file in os.listdir(statementFilesPath): #Iterate to every statement file (CSV) in the ING reports
+        if (bankName == "ING"):
+            transactionList = parseINGCSVFile(file)
+            #We can get the month and year from the first element, as it is always the same format
+            date = transactionList[0][0].split(" ")
+            month = date[1]
+            year  = date[2]
+        elif (bankName == "Revolut"):
+            transactionList = parseRevolutCSVFile(file)
+            date = transactionList[0][0].replace("-", " ").split(" ") #Split by "-" was not working...
+            month = monthNumberToString(date[1]) # Get a month string
+            year  = date[0]
+
+        monthreport.append([year, month, transactionList])
+
+    return monthreport
+
+### WRITE TO FILES ###
+def writeMonthlyReportToFiles(bankName, monthReport):
+    for entry in monthReport:
+
+        year  = entry[0]
+        month = entry[1]
+
+        fileName = "./" + bankName + " " + "Reports/" + bankName + " " + year + " " + monthStringToNumber(month) + " - " + month + " report.txt" #format it i.e ING 2024 11 noiembrie report.txt
+        transactionText = ""
+
+        for transaction in entry[2]:
+            transactionText += " | ".join(transaction) + "\n"
+
+        if(os.path.isfile(fileName)):
+            with open(fileName, "r") as out:
+                previousFileText = out.read()
+                out.close()
+        else:
+            print(bankName + " " + month + " " + year + " report has been created.")
+            previousFileText = "This file does not exist yet" #It is safer to assign a random string than a blank one. If the file was already blank, by an accident, the repor would not be generated.
+
+        if (previousFileText != transactionText): # Do not rewrite file if it is already the same
+            print(bankName + " " + month + " " + year + " report has been updated.")
+            with open(fileName, "w") as out:
+                out.write(transactionText)
+                out.close()
+        else:
+            print(bankName + " " + month + " " + year + " report is still the same.")
+
 
 
 def processStatements(bankanme):
@@ -299,22 +345,10 @@ def processStatements(bankanme):
 
     return monthlyReport
 
-# def createGeneralReport():
-#     #TODO
-
 
 def parseStatements():
     INGReports = processStatements("ING")
     RevolutReports = processStatements("Revolut")
-    generalReport = {}
-
-    # for ingReport in INGReports:
-    #     for revolutReport in RevolutReports:
-    #         if(ingReport[0] == revolutReport[0]): #Same month
-    #             auxReport = ingReport[1]
-    #             auxReport.extend(revolutReport[1])
-    #             auxReport.sort()
-    #             generalReport[ingReport[0]] = auxReport
 
 if __name__ == "__main__":
     parseStatements()
