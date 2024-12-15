@@ -69,7 +69,7 @@ transactionTypesEnum = ("Incasare ", "Cumparare", "Transfer ", "Schimb   ") #Mak
 
 #Only get the relevant information from the csv file, leaving another function to format it
 def parseINGCSVFile(file):
-    statementFilesPath = "./Statements/ING/"
+    statementFilesPath = "./Statements/"
 
     #Info to be extracted
     transactionDate   = ""
@@ -129,7 +129,7 @@ def parseINGCSVFile(file):
     return transcationList
 
 def parseRevolutCSVFile(file):
-    statementFilesPath = "./Statements/Revolut/"
+    statementFilesPath = "./Statements/"
 
     #Info to be extracted
     transactionDate   = ""
