@@ -280,22 +280,24 @@ def lintRevolutReport(revolutMonthlyReports):
 
 ### CONCATENATE MONTHS INTO A FULL REPORT ###
 def createMonthlyReport(bankName):
-    statementFilesPath = "./Statements/" + bankName + "/"
+    statementFilesPath = "./Statements/"
     monthreport = [] # A list that will contain, the month, year and transaction of said month
-    for file in os.listdir(statementFilesPath): #Iterate to every statement file (CSV) in the ING reports
-        if (bankName == "ING"):
+
+    for file in os.listdir(statementFilesPath): #Iterate to every statement file (CSV) in the statements folder
+        if (bankName == "ING" and file.find("ING Bank") != -1):
             transactionList = parseINGCSVFile(file)
             #We can get the month and year from the first element, as it is always the same format
             date = transactionList[0][0].split(" ")
             month = date[1]
             year  = date[2]
-        elif (bankName == "Revolut"):
+            monthreport.append([year, month, transactionList])
+
+        elif (bankName == "Revolut" and file.find("account-statement_") != -1):
             transactionList = parseRevolutCSVFile(file)
             date = transactionList[0][0].replace("-", " ").split(" ") #Split by "-" was not working...
             month = monthNumberToString(date[1]) # Get a month string
             year  = date[0]
-
-        monthreport.append([year, month, transactionList])
+            monthreport.append([year, month, transactionList])
 
     return monthreport
 
@@ -325,10 +327,6 @@ def writeMonthlyReportToFiles(bankName, monthReport):
             with open(fileName, "w") as out:
                 out.write(transactionText)
                 out.close()
-        else:
-            print(bankName + " " + month + " " + year + " report is still the same.")
-
-
 
 def processStatements(bankanme):
     monthlyReport = createMonthlyReport(bankanme)
