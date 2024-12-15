@@ -344,9 +344,21 @@ def processStatements(bankanme):
     return monthlyReport
 
 
-def parseStatements():
-    INGReports = processStatements("ING")
-    RevolutReports = processStatements("Revolut")
+def parseStatements(bankName = ""):
+    if(bankName == "ING"):
+        print("Only ING reports are affected")
+        INGReports = processStatements("ING")
+    elif(bankName == "Revolut"):
+        print("Only Revolut reports are affected")
+        RevolutReports = processStatements("Revolut")
+    else:
+        print("All reports are affected")
+        RevolutReports = processStatements("Revolut")
+        INGReports = processStatements("ING")
+
 
 if __name__ == "__main__":
-    parseStatements()
+    if(len(sys.argv) > 1):
+        parseStatements(sys.argv[1])
+    else:
+        parseStatements()
