@@ -328,7 +328,7 @@ def writeMonthlyReportToFiles(bankName, monthReport):
                 out.write(transactionText)
                 out.close()
 
-def processStatements(bankanme):
+def processStatements(bankanme = ""): #Put every relevant statement into a text format file
     monthlyReport = createMonthlyReport(bankanme)
     if(bankanme == "ING"):
         monthlyReport = formatINGMonthlyReport(monthlyReport)
@@ -342,6 +342,8 @@ def processStatements(bankanme):
         date.pop(1)
 
     return monthlyReport
+
+def createGeneralReport():
 
 
 def parseStatements(bankName = ""):
